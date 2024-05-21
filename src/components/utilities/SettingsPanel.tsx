@@ -2,48 +2,79 @@
 import React from "react";
 import {
   Box,
-  Badge,
-  Stack,
-  Text,
+  Chip,
+  Grid,
+  Typography,
   Button as MaterialButton,
   FormControl,
   FormLabel,
   Slider,
-  SliderFilledTrack,
-  SliderThumb,
-  SliderTrack,
-} from "@chakra-ui/react";
+} from "@material-ui/core";
+import { useEditor } from "@craftjs/core";
+import { Button } from "@chakra-ui/react";
 
 export const SettingsPanel = () => {
-  return (
-    <Box bgColor="rgba(0, 0, 0, 0.06)" mt={2} px={2} py={2}>
-      <Stack direction="column" spacing={0}>
-        <Stack direction={"row"} alignItems="center">
-          <Box width={"xs"}>
-            <Text variant="subtitle1">Selected</Text>
+  const { actions, selected } = useEditor((state, query) => {
+    const [currentNodeId] = state.events.selected;
+    let selected;
+
+    if (currentNodeId) {
+      selected = {
+        id: currentNodeId,
+        name: state.nodes[currentNodeId].data.name,
+        settings:
+          state.nodes[currentNodeId].related &&
+          state.nodes[currentNodeId].related.settings,
+        isDeletable: query.node(currentNodeId).isDeletable(),
+      };
+      console.log(selected);
+    }
+
+    return {
+      selected,
+    };
+  });
+
+  return selected ? (
+    <Box bgcolor="rgba(0, 0, 0, 0.06)" mt={2} px={2} py={2}>
+      <Grid
+        style={{ padding: "10px" }}
+        container
+        direction="column"
+        spacing={0}
+      >
+        <Grid item>
+          <Box pb={2}>
+            <Grid container alignItems="center">
+              <Grid item xs>
+                <Typography variant="subtitle1">Selected</Typography>
+              </Grid>
+              <Grid item>
+                <Chip size="small" color="primary" label={selected.name} />
+              </Grid>
+            </Grid>
           </Box>
-          <Box>
-            <Badge colorScheme="messenger">Selected</Badge>
-          </Box>
-        </Stack>
-        <FormLabel>Prop</FormLabel>
-        <Slider
-          margin={2}
-          aria-label="slider-ex-1"
-          min={0}
-          max={1000}
-          step={1}
-          defaultValue={30}
-        >
-          <SliderTrack>
-            <SliderFilledTrack />
-          </SliderTrack>
-          <SliderThumb />
-        </Slider>
-        <MaterialButton variant="solid" colorScheme="red">
-          Delete
-        </MaterialButton>
-      </Stack>
+        </Grid>
+        {selected.settings && React.createElement(selected.settings)}
+        {selected.isDeletable ? (
+          <Button
+            fontFamily={"heading"}
+            mt={8}
+            w={"full"}
+            bgGradient="linear(to-r, red.400,pink.400)"
+            color={"white"}
+            _hover={{
+              bgGradient: "linear(to-r, red.400,pink.400)",
+              boxShadow: "xl",
+            }}
+            onClick={() => {
+              actions.delete(selected.id);
+            }}
+          >
+            Delete
+          </Button>
+        ) : null}
+      </Grid>
     </Box>
-  );
+  ) : null;
 };

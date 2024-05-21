@@ -34,22 +34,31 @@ import {
   FiChevronDown,
   FiGrid,
   FiChevronUp,
+  FiBook,
 } from "react-icons/fi";
 import { IconType } from "react-icons";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAppSelector } from "../redux/hooks";
 import { getSelectedComponent } from "../redux/slices/selectedComponent";
+import { selectUser, setUser } from "../redux/slices/userSlice";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useDispatch } from "react-redux";
+import { APIURL } from "../utils/api";
+import Loader from "./UI/Loader";
 
 interface LinkItemProps {
   name: string;
   icon: IconType;
   navtype?: string;
+  href: string;
 }
 
 interface NavItemProps extends FlexProps {
   icon: IconType;
   navtype?: string;
   children: React.ReactNode;
+  href: string;
 }
 
 interface MobileProps extends FlexProps {
@@ -61,11 +70,9 @@ interface SidebarProps extends BoxProps {
 }
 
 const LinkItems: Array<LinkItemProps> = [
-  { name: "Home", icon: FiHome },
-  { name: "Comonents", icon: FiGrid, navtype: "menu" },
-  { name: "Explore", icon: FiCompass },
-  { name: "Favourites", icon: FiStar },
-  { name: "Settings", icon: FiSettings },
+  { name: "Home", icon: FiHome, href: "/home" },
+  { name: "My Projects", icon: FiBook, href: "/my-projects" },
+  { name: "Settings", icon: FiSettings, href: "/settings" },
 ];
 
 const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
@@ -87,7 +94,12 @@ const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
         <CloseButton display={{ base: "flex", md: "none" }} onClick={onClose} />
       </Flex>
       {LinkItems.map((link) => (
-        <NavItem key={link.name} navtype={link.navtype} icon={link.icon}>
+        <NavItem
+          href={link.href}
+          key={link.name}
+          navtype={link.navtype}
+          icon={link.icon}
+        >
           {link.name}
         </NavItem>
       ))}
@@ -99,13 +111,23 @@ const onDragEnd = (i: Node) => {
   const el = document.querySelector("#canvas");
   el?.appendChild(i);
 };
-const NavItem = ({ icon, children, navtype, ...rest }: NavItemProps) => {
+const NavItem = ({ icon, children, navtype, href, ...rest }: NavItemProps) => {
   const [shown, setShown] = useState(false);
   const selectedNode = useAppSelector(getSelectedComponent);
   console.log(<>selectedNode</>);
   return navtype === "menu" ? (
     <>
       <Button
+        fontFamily={"heading"}
+        my={8}
+        mx={4}
+        w={"80%"}
+        bgGradient="linear(to-r, blue.400,cyan.400)"
+        color={"white"}
+        _hover={{
+          bgGradient: "linear(to-r, blue.400,cyan.400)",
+          boxShadow: "xl",
+        }}
         onClick={() => setShown(!shown)}
         leftIcon={shown === false ? <FiChevronDown /> : <FiChevronUp />}
       >
@@ -150,7 +172,7 @@ const NavItem = ({ icon, children, navtype, ...rest }: NavItemProps) => {
   ) : (
     <Box
       as="a"
-      href="#"
+      href={href}
       style={{ textDecoration: "none" }}
       _focus={{ boxShadow: "none" }}
     >
@@ -184,6 +206,13 @@ const NavItem = ({ icon, children, navtype, ...rest }: NavItemProps) => {
 };
 
 const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
+  const user = useAppSelector(selectUser);
+  const navigate = useNavigate();
+  const signOut = () => {
+    console.log("logged out");
+    localStorage.removeItem("auth_token");
+    navigate("/");
+  };
   return (
     <Flex
       ml={{ base: 0, md: 60 }}
@@ -205,6 +234,11 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
       />
 
       <Text
+        bgGradient="linear(to-r, blue.400,cyan.400)"
+        _hover={{
+          bgGradient: "linear(to-r, blue.400,cyan.400)",
+          boxShadow: "xl",
+        }}
         display={{ base: "flex", md: "none" }}
         fontSize="2xl"
         fontFamily="monospace"
@@ -231,7 +265,7 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
                 <Avatar
                   size={"sm"}
                   src={
-                    "https://images.unsplash.com/photo-1619946794135-5bc917a27793?ixlib=rb-0.3.5&q=80&fm=jpg&crop=faces&fit=crop&h=200&w=200&s=b616b2c5b373a80ffc9636ba24f7a4a9"
+                    "https://cdn-icons-png.flaticon.com/512/1724/1724930.png"
                   }
                 />
                 <VStack
@@ -240,9 +274,12 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
                   spacing="1px"
                   ml="2"
                 >
-                  <Text fontSize="sm">Justina Clark</Text>
+                  <Text fontSize="sm">
+                    {user.name} {user.surname}
+                  </Text>
+
                   <Text fontSize="xs" color="gray.600">
-                    Admin
+                    {user.role}
                   </Text>
                 </VStack>
                 <Box display={{ base: "none", md: "flex" }}>
@@ -256,9 +293,23 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
             >
               <MenuItem>Profile</MenuItem>
               <MenuItem>Settings</MenuItem>
-              <MenuItem>Billing</MenuItem>
               <MenuDivider />
-              <MenuItem>Sign out</MenuItem>
+              <MenuItem
+                mx={2}
+                fontFamily={"heading"}
+                mt={8}
+                w={"90%"}
+                bgGradient="linear(to-r, red.400,pink.400)"
+                color={"white"}
+                _hover={{
+                  bgGradient: "linear(to-r, red.400,pink.400)",
+                  boxShadow: "xl",
+                }}
+                as={Button}
+                onClick={() => signOut()}
+              >
+                Sign out
+              </MenuItem>
             </MenuList>
           </Menu>
         </Flex>
@@ -269,8 +320,33 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-
-  return (
+  const dispatch = useDispatch();
+  const [loading, setLoading] = useState(false);
+  const user = useAppSelector(selectUser);
+  const token = localStorage.getItem("auth_token");
+  useEffect(() => {
+    const getUserData = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${APIURL}/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.data) {
+          dispatch(setUser(res.data));
+          setLoading(false);
+        }
+      } catch (error) {
+        console.log(error);
+        setLoading(false);
+      }
+    };
+    getUserData();
+  }, []);
+  return loading == true ? (
+    <Loader />
+  ) : (
     <Box minH="100vh" bg={useColorModeValue("gray.100", "gray.900")}>
       <SidebarContent
         onClose={() => onClose}
