@@ -5,6 +5,7 @@ import FolderList from "../../components/UI/FolderList";
 import CreateFolder from "../../components/UI/CreateFolder";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import {
+  fetchAllDocuments,
   fetchFoldersByProject,
   getFileFoldersState,
 } from "../../redux/slices/fileFolderSlice";
@@ -22,6 +23,13 @@ const Project = () => {
 
     fetchFolders();
   }, [project_id]);
+  useEffect(() => {
+    const fetchFiles = async () => {
+      await dispatch(fetchAllDocuments());
+    };
+
+    fetchFiles();
+  }, [dispatch]);
   return (
     <Layout>
       <FolderList

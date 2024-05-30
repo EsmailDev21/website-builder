@@ -8,6 +8,7 @@ import {
   fetchChildFolders,
   getFileFoldersState,
   changeFolder,
+  fetchAllDocuments,
 } from "../../redux/slices/fileFolderSlice";
 import Loader from "../../components/UI/Loader";
 import ErrorMessage from "../../components/UI/ErrorMessage";
@@ -19,7 +20,7 @@ const Folder = () => {
   }>();
 
   const dispatch = useAppDispatch();
-  const { userFolders, currentFolder, isLoading, error } =
+  const { userFolders, currentFolder, isLoading, error, userFiles } =
     useAppSelector(getFileFoldersState);
   const navigate = useNavigate();
 
@@ -34,6 +35,12 @@ const Folder = () => {
       dispatch(fetchChildFolders(currentFolder.id));
     }
   }, [currentFolder, dispatch]);
+  useEffect(() => {
+    const getDocs = async () => {
+      await dispatch(fetchAllDocuments()).unwrap();
+    };
+    getDocs();
+  }, [currentFolder, dispatch]);
 
   if (isLoading) {
     return <Loader text={"Loading folders..."} />;
@@ -46,7 +53,6 @@ const Folder = () => {
   return (
     <Layout>
       <FolderList
-        files={[]}
         creator={
           currentFolder && (
             <CreateFolder
@@ -57,6 +63,7 @@ const Folder = () => {
         }
         projectID={project_id}
         folders={userFolders.filter((i) => i.parentID === currentFolder?.id)}
+        files={currentFolder ? userFiles : []} // Pass files of current folder
       />
     </Layout>
   );

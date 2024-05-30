@@ -1,5 +1,3 @@
-// redux/slices/fileFolderSlice.ts
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import { Document, Folder } from "../../types";
@@ -8,7 +6,17 @@ import {
   getChildFolders,
   getFoldersByProjectId,
 } from "../../components/services/folderService";
+import {
+  createDocument,
+  getAllDocuments,
+  getDocumentById,
+  updateDocument,
+  deleteDocument,
+  CreateDocumentDto,
+  UpdateDocumentDto,
+} from "../../components/services/documentService"; // Import document services
 
+// Redux state interface
 export interface FileFoldersState {
   isLoading: boolean;
   currentFolder: Folder | null;
@@ -17,6 +25,7 @@ export interface FileFoldersState {
   error: string | null;
 }
 
+// Initial state
 const initialState: FileFoldersState = {
   isLoading: false,
   currentFolder: null,
@@ -25,6 +34,7 @@ const initialState: FileFoldersState = {
   error: null,
 };
 
+// Thunks for folder-related operations
 export const fetchFoldersByProject = createAsyncThunk(
   "filefolders/fetchFoldersByProject",
   async (projectId: string, { rejectWithValue }) => {
@@ -70,6 +80,85 @@ export const createNewFolder = createAsyncThunk(
   }
 );
 
+// Thunks for document-related operations
+export const fetchAllDocuments = createAsyncThunk(
+  "filefolders/fetchAllDocuments",
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await getAllDocuments();
+      return data;
+    } catch (error: any) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const fetchDocumentById = createAsyncThunk(
+  "filefolders/fetchDocumentById",
+  async (documentId: string, { rejectWithValue }) => {
+    try {
+      const data = await getDocumentById(documentId);
+      return data;
+    } catch (error: any) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const createNewDocument = createAsyncThunk(
+  "filefolders/createNewDocument",
+  async (
+    documentData: {
+      dto: CreateDocumentDto;
+      projectId: string;
+      fileName: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const data = await createDocument(
+        documentData.dto,
+        documentData.projectId,
+        documentData.fileName
+      );
+      return data;
+    } catch (error: any) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const updateExistingDocument = createAsyncThunk(
+  "filefolders/updateExistingDocument",
+  async (
+    {
+      documentId,
+      documentData,
+    }: { documentId: string; documentData: UpdateDocumentDto },
+    { rejectWithValue }
+  ) => {
+    try {
+      const data = await updateDocument(documentId, documentData);
+      return data;
+    } catch (error: any) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const deleteDocumentById = createAsyncThunk(
+  "filefolders/deleteDocumentById",
+  async (documentId: string, { rejectWithValue }) => {
+    try {
+      await deleteDocument(documentId);
+      return documentId; // Return documentId on success for removing from state
+    } catch (error: any) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+// Redux slice
 const fileFoldersSlice = createSlice({
   name: "filefolders",
   initialState,
@@ -92,6 +181,7 @@ const fileFoldersSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Folder-related reducers
       .addCase(fetchFoldersByProject.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -130,7 +220,84 @@ const fileFoldersSlice = createSlice({
       .addCase(createNewFolder.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      // Document-related reducers
+      .addCase(fetchAllDocuments.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllDocuments.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.userFiles = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchAllDocuments.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Document-related reducers
+      .addCase(fetchDocumentById.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchDocumentById.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Assuming fetched document should be added to userFiles
+        state.userFiles.push(action.payload);
+        state.error = null;
+      })
+      .addCase(fetchDocumentById.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(createNewDocument.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(createNewDocument.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Assuming created document should be added to userFiles
+        state.userFiles.push(action.payload);
+        state.error = null;
+      })
+      .addCase(createNewDocument.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(updateExistingDocument.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateExistingDocument.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Assuming updated document should be updated in userFiles
+        state.userFiles = state.userFiles.map((doc) =>
+          doc.id === action.payload.id ? action.payload : doc
+        );
+        state.error = null;
+      })
+      .addCase(updateExistingDocument.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(deleteDocumentById.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteDocumentById.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Assuming deleted document should be removed from userFiles
+        state.userFiles = state.userFiles.filter(
+          (doc) => doc.id !== action.payload
+        );
+        state.error = null;
+      })
+      .addCase(deleteDocumentById.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
+
+    // Add similar reducers for other document actions
   },
 });
 

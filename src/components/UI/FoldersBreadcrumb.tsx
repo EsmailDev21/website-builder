@@ -32,22 +32,23 @@ const FoldersBreadcrumb = ({ projectID }: { projectID: string }) => {
           {data.find((i) => i.id === projectID).name}
         </BreadcrumbLink>
       </BreadcrumbItem>
-      {folderPath.map((item, index) => {
-        const folder = userFolders.find((f) => f.name === item);
-        if (!folder) return null;
-        return (
-          <BreadcrumbItem key={index}>
-            <BreadcrumbLink
-              color="blue.500"
-              as={Link}
-              to={`/my-projects/${projectID}/folder/${folder.id}`}
-              onClick={() => dispatch(changeFolder(folder.id))}
-            >
-              {item}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-        );
-      })}
+      {folderPath &&
+        folderPath.map((item, index) => {
+          const folder = userFolders.find((f) => f.name === item);
+          if (!folder) return null;
+          return (
+            <BreadcrumbItem key={index}>
+              <BreadcrumbLink
+                color="blue.500"
+                as={Link}
+                to={`/my-projects/${projectID}/folder/${folder.id}`}
+                onClick={() => dispatch(changeFolder(folder.id))}
+              >
+                {item}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          );
+        })}
       {currentFolder && (
         <BreadcrumbItem isCurrentPage>
           <BreadcrumbLink

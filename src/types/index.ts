@@ -7,7 +7,7 @@ export type Document = {
   savedAt: Date;
   folderId: string;
   projectId: string;
-  parent: string; //folderId
+  //parent: string; //folderId
   extension: string;
   createdAt: Date;
 };

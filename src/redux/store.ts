@@ -13,16 +13,33 @@ const persistConfig = {
   storage,
 };
 
+const persistUserConfig = {
+  key: "user",
+  storage,
+};
+
+const persistProjectConfig = {
+  key: "project",
+  storage,
+};
+
 const persistedFileFolderReducer = persistReducer(
   persistConfig,
   fileFoldersReducer
 );
 
+const persistedUserReducer = persistReducer(persistUserConfig, userReducer);
+
+const persistedProjectReducer = persistReducer(
+  persistProjectConfig,
+  projectsReducer
+);
+
 export const store = configureStore({
   reducer: {
     selectedComponent: selectedComponentReducer,
-    user: userReducer,
-    projects: projectsReducer,
+    user: persistedUserReducer,
+    projects: persistedProjectReducer,
     folders: foldersReducer,
     filefolders: persistedFileFolderReducer,
   },

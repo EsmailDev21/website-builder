@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// Topbar.js
+import React, { useState, useEffect } from "react";
 import {
   Box,
   FormControlLabel,
@@ -30,19 +31,31 @@ import {
 import { PContainer } from "../preview/PContainer";
 import { PText } from "../preview/PText";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  CodeBlock,
-  dracula,
-  atomOneDark,
-  github,
-  a11yDark,
-} from "react-code-blocks";
+import { CodeBlock, atomOneDark } from "react-code-blocks";
 import { PScript } from "../preview/PScript";
 import { PInput } from "../preview/PInput";
 import { PImage } from "../preview/PImage";
 import { PButton } from "../preview/PButton";
+import { useAppDispatch, useAppSelector } from "../../redux/hooks";
+import {
+  createNewDocument,
+  fetchFoldersByProject,
+  getFileFoldersState,
+} from "../../redux/slices/fileFolderSlice";
+import { selectUser } from "../../redux/slices/userSlice";
+import {
+  endtLoading,
+  setProjects,
+  startLoading,
+} from "../../redux/slices/projectsSlice";
+import axios from "axios";
+import { token } from "../../utils/auth";
+import { APIURL } from "../../utils/api"; // Import the new component
+import SaveModal from "../UI/Save";
+import { getFoldersByProjectId } from "../services/folderService";
 
 export const Topbar = () => {
+  const dispatch = useAppDispatch();
   const { actions, query, enabled } = useEditor((state) => ({
     enabled: state.options.enabled,
   }));
@@ -52,11 +65,46 @@ export const Topbar = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [stateToLoad, setStateToLoad] = useState(null);
   const [data, setData] = useState();
-  const previewCode = (data: any) => {
+  const user = useAppSelector(selectUser);
+  const projects = useAppSelector((state) => state.projects.data);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const folders = useAppSelector(getFileFoldersState).userFolders;
+  const [filename, setFilename] = useState("");
+
+  console.log([selectedFolder, selectedProject]);
+
+  useEffect(() => {
+    const getProjects = async (ownerID) => {
+      try {
+        dispatch(startLoading());
+        const res = await axios.get(`${APIURL}/project/byOwner/${ownerID}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.data) {
+          dispatch(setProjects(res.data));
+        }
+        dispatch(endtLoading());
+      } catch (error) {
+        dispatch(endtLoading());
+      }
+    };
+    getProjects(user.id);
+  }, [user.id]);
+  useEffect(() => {
+    const getFolders = async () => {
+      await dispatch(fetchFoldersByProject(selectedProject.id));
+    };
+    getFolders();
+  }, [selectedProject]);
+
+  const previewCode = (data) => {
     localStorage.setItem("previewData", data);
-    //navigate("/preview");
     console.log(data);
   };
+
   const previewPage = () => {
     navigate("/preview");
   };
@@ -71,7 +119,7 @@ export const Topbar = () => {
 
     const Children =
       node != null
-        ? node.nodes.map((x, index) => {
+        ? node.nodes.map((x) => {
             return <Node key={x} node={data[x]} data={data} />;
           })
         : null;
@@ -97,78 +145,57 @@ export const Topbar = () => {
 
   const json = JSON.parse(previewData);
   const node = <Node node={json != null ? json.ROOT : null} data={json} />;
-  console.log({ node });
   const html = `<!DOCTYPE html><html>
 <head>
-
 <meta charSet="UTF-8" />
-<script
-      src="https://unpkg.com/react@latest/umd/react.development.js"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      src="https://unpkg.com/@mui/material@latest/umd/material-ui.development.js"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      src="https://unpkg.com/@babel/standalone@latest/babel.min.js"
-      crossorigin="anonymous"
-    ></script>
-    <!-- Fonts to support Material Design -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
-    />
-    <!-- Icons to support Material Design -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+<script src="https://unpkg.com/react@latest/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@mui/material@latest/umd/material-ui.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@latest/babel.min.js" crossorigin="anonymous"></script>
+<!-- Fonts to support Material Design -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" />
+<!-- Icons to support Material Design -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
 </head>
 <body>
 ${renderToStaticMarkup(node)}
 </body>
 </html>`;
+
+  const createDocumentFromHTML = (htmlContent) => {
+    if (!selectedProject || !selectedFolder) {
+      setSnackbarMessage("Please select project and folder");
+      return;
+    }
+
+    dispatch(
+      createNewDocument({
+        dto: {
+          content: htmlContent,
+          folderId: selectedFolder.id,
+          path: selectedFolder.path,
+          extension: ".html",
+          jsonContent: JSON.stringify(json),
+        },
+        projectId: selectedProject,
+        fileName: filename + ".html",
+      })
+    )
+      .then((response) => {
+        console.log("Document created successfully:", response);
+        setSnackbarMessage("Document created successfully");
+      })
+      .catch((error) => {
+        console.error("Failed to create document:", error);
+        setSnackbarMessage("Failed to create document");
+      });
+  };
+
+  //const { isOpen: isSaveModalOpen, onOpen: onSaveModalOpen, onClose: onSaveModalClose } = useDisclosure();
+
   return (
     <>
-      <Modal
-        size={"6xl"}
-        closeOnOverlayClick={false}
-        isOpen={isOpen}
-        onClose={onClose}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Code Preview</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <CodeBlock
-              text={html}
-              language={"html"}
-              showLineNumbers={true}
-              theme={atomOneDark}
-            />
-          </ModalBody>
-
-          <ModalFooter>
-            <Button
-              fontFamily={"heading"}
-              mt={8}
-              w={"full"}
-              bgGradient="linear(to-r, blue.400,cyan.400)"
-              color={"white"}
-              _hover={{
-                bgGradient: "linear(to-r, blue.400,cyan.400)",
-                boxShadow: "xl",
-              }}
-              onClick={() => previewPage()}
-              mr={3}
-            >
-              Preview
-            </Button>
-            <Button onClick={onClose}>Cancel</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
       <Box px={1} py={1} mt={3} mb={1} bgcolor="#cbe8e7">
         <Grid container alignItems="center">
           <Grid item xs>
@@ -260,6 +287,43 @@ ${renderToStaticMarkup(node)}
           </Grid>
         </Grid>
       </Box>
+
+      <Modal
+        size={"6xl"}
+        closeOnOverlayClick={false}
+        isOpen={isOpen}
+        onClose={onClose}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Code Preview</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <CodeBlock
+              text={html}
+              language={"html"}
+              showLineNumbers={true}
+              theme={atomOneDark}
+            />
+          </ModalBody>
+
+          <ModalFooter>
+            <SaveModal
+              projects={projects}
+              folders={folders}
+              selectedProject={selectedProject}
+              setSelectedProject={setSelectedProject}
+              selectedFolder={selectedFolder}
+              setSelectedFolder={setSelectedFolder}
+              filename={filename}
+              setFilename={setFilename}
+              createDocumentFromHTML={createDocumentFromHTML}
+              htmlContent={html}
+            />
+            <Button onClick={onClose}>Close</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   );
 };

@@ -60,7 +60,7 @@ const Signin = () => {
       const errorMessage = error.response?.data?.message || "Failed to Login!";
       toast({
         title: "Failed to Login",
-        description: errorMessage,
+        description: "Failed to Login",
         status: "error",
         duration: 5000,
         isClosable: true,
